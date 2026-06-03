@@ -357,6 +357,7 @@ function setSyncStatus(stato, msg) {
 }
 
 function syncToSheet() {
+  // Usiamo GET con parametri per evitare CORS sul POST
   if(!SCRIPT_URL) return;
   setSyncStatus("syncing", "Salvataggio su Google Sheets...");
   const payload = { action:"sync", spese, budgets };
@@ -433,7 +434,7 @@ function init(){
   MESI.forEach((m,i)=>{const o=document.createElement("option");o.value=i;o.textContent=m;if(i===meseCorrente)o.selected=true;sm.appendChild(o);});
   sm.addEventListener("change",()=>{meseCorrente=+sm.value;render();});
   const sa=document.getElementById("selAnno");
-  [2026,2027].forEach(y=>{const o=document.createElement("option");o.value=y;o.textContent=y;if(y===annoCorrente)o.selected=true;sa.appendChild(o);});
+  [2024,2025,2026,2027].forEach(y=>{const o=document.createElement("option");o.value=y;o.textContent=y;if(y===annoCorrente)o.selected=true;sa.appendChild(o);});
   sa.addEventListener("change",()=>{annoCorrente=+sa.value;render();});
   const ic=document.getElementById("inpCategoria");
   CATEGORIE.forEach(c=>{const o=document.createElement("option");o.value=c.key;o.textContent=`${c.emoji} ${c.label}`;ic.appendChild(o);});
