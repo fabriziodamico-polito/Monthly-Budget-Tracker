@@ -294,19 +294,19 @@ tbody td{padding:10px;font-size:13px;}
 // ═══════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyTKVD8J7lUbvBo99fjtakO8qAhDxj4fpgIE4mobKCzShrDydhbPYObHoYRaUR2eiE/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyGkGBpuE_edEND4aiRLiMz1okJvp-y_8d_tU08gDO_K_Zk2eVSOuYA_jEXMEmz9ps/exec";
 
 const CATEGORIE=[
   {key:"cene",        label:"Cene fuori",    emoji:"🍽️", color:"#E07A5F"},
   {key:"pranzi",      label:"Pranzi fuori",  emoji:"🥗",  color:"#F2CC8F"},
-  {key:"bar",         label:"Bar",           emoji:"​🥐​​",  color:"#81B29A"},
+  {key:"bar",         label:"Bar",           emoji:"☕",  color:"#81B29A"},
   {key:"feste",       label:"Feste",         emoji:"🎉",  color:"#9E7FD4"},
-  {key:"alcol",       label:"Alcol",         emoji:"🍺​",  color:"#C9485B"},
-  {key:"vestiti",     label:"Vestiti",       emoji:"👖​",  color:"#3D405B"},
+  {key:"alcol",       label:"Alcol",         emoji:"🍷",  color:"#C9485B"},
+  {key:"vestiti",     label:"Vestiti",       emoji:"👗",  color:"#3D405B"},
   {key:"fisse",       label:"Spese fisse",   emoji:"🏠",  color:"#457B9D"},
-  {key:"spostamenti", label:"Spostamenti",   emoji:"🚲​",  color:"#2A9D8F"},
-  {key:"sport",       label:"Sport",         emoji:"🥊​", color:"#E9C46A"},
-  {key:"heets",       label:"Heets",         emoji:"💨",  color:"#8B6F47"},
+  {key:"spostamenti", label:"Spostamenti",   emoji:"🚇",  color:"#2A9D8F"},
+  {key:"sport",       label:"Sport",         emoji:"🏋️", color:"#E9C46A"},
+  {key:"heets",       label:"Heets",         emoji:"🚬",  color:"#8B6F47"},
   {key:"altro",       label:"Altro",         emoji:"📦",  color:"#A8DADC"},
 ];
 const MESI=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
@@ -373,23 +373,43 @@ function syncToSheet() {
   .catch(()=> setSyncStatus("error", "Nessuna connessione — dati salvati in locale"));
 }
 
+function normalizzaData(d) {
+  if (!d) return "";
+  const s = String(d);
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) return s;
+  try {
+    const dt = new Date(s);
+    if (!isNaN(dt.getTime())) return dt.toLocaleDateString("it-IT", {day:"2-digit",month:"2-digit",year:"numeric"});
+  } catch(e) {}
+  return s;
+}
+
 function loadFromSheet() {
   if(!SCRIPT_URL) return;
   setSyncStatus("syncing", "Caricamento dati dal cloud...");
-  fetch(SCRIPT_URL + "?action=load")
+  fetch(SCRIPT_URL + "?action=load", {mode:"cors"})
   .then(r=>r.json())
   .then(d=>{
-    if(d.ok && d.spese) {
-      // Merge: prendi i dati cloud se più recenti
-      const cloudIds = new Set(d.spese.map(s=>s.id));
-      const localOnly = spese.filter(s=>!cloudIds.has(s.id));
-      spese   = [...d.spese, ...localOnly];
-      budgets = { ...d.budgets, ...budgets }; // locale prevale su budget
+    if(d.ok && d.spese && d.spese.length > 0) {
+      // Normalizza dati dal cloud: ID come numero, date in formato italiano
+      const cloudSpese = d.spese.map(s => ({
+        ...s,
+        id:      Number(s.id),
+        mese:    Number(s.mese),
+        anno:    Number(s.anno),
+        importo: Number(s.importo),
+        data:    normalizzaData(s.data)
+      }));
+      // Cloud e' la fonte di verita': aggiunge solo spese locali non ancora sul cloud
+      const cloudIds = new Set(cloudSpese.map(s => s.id));
+      const localOnly = spese.filter(s => !cloudIds.has(Number(s.id)));
+      spese   = [...cloudSpese, ...localOnly];
+      budgets = { ...d.budgets, ...budgets };
       saveLocal();
       render();
-      setSyncStatus("ok", `✓ Dati caricati dal cloud (${d.spese.length} spese)`);
+      setSyncStatus("ok", `✓ Dati caricati dal cloud (${cloudSpese.length} spese)`);
     } else {
-      setSyncStatus("ok", "✓ Nessun dato cloud — partenza da locale");
+      setSyncStatus("ok", "✓ Cloud raggiunto, nessun dato precedente");
     }
   })
   .catch(()=> setSyncStatus("error", "Cloud non raggiungibile — uso dati locali"));
@@ -434,7 +454,7 @@ function init(){
   MESI.forEach((m,i)=>{const o=document.createElement("option");o.value=i;o.textContent=m;if(i===meseCorrente)o.selected=true;sm.appendChild(o);});
   sm.addEventListener("change",()=>{meseCorrente=+sm.value;render();});
   const sa=document.getElementById("selAnno");
-  [2026,2027].forEach(y=>{const o=document.createElement("option");o.value=y;o.textContent=y;if(y===annoCorrente)o.selected=true;sa.appendChild(o);});
+  [2024,2025,2026,2027].forEach(y=>{const o=document.createElement("option");o.value=y;o.textContent=y;if(y===annoCorrente)o.selected=true;sa.appendChild(o);});
   sa.addEventListener("change",()=>{annoCorrente=+sa.value;render();});
   const ic=document.getElementById("inpCategoria");
   CATEGORIE.forEach(c=>{const o=document.createElement("option");o.value=c.key;o.textContent=`${c.emoji} ${c.label}`;ic.appendChild(o);});
@@ -487,7 +507,7 @@ function aggiungiSpesa(){
   const inp=document.getElementById("inpImporto");
   if(!raw||isNaN(imp)||imp<=0){inp.style.borderColor="#C9485B";setTimeout(()=>inp.style.borderColor="#2d2d4e",1200);return;}
   const id=Date.now();
-  spese.push({id,categoria:cat,descrizione:desc||catInfo(cat).label,importo:imp,mese:meseCorrente,anno:annoCorrente,data:new Date().toLocaleDateString("it-IT"),newRow:true});
+  spese.push({id,categoria:cat,descrizione:desc||catInfo(cat).label,importo:imp,mese:meseCorrente,anno:annoCorrente,data:new Date().toLocaleDateString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric"}),newRow:true});
   save();
   document.getElementById("inpDesc").value="";
   inp.value="";
