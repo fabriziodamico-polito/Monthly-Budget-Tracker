@@ -173,6 +173,7 @@ tbody td{padding:10px;font-size:13px;}
     <select id="selMese"></select>
     <select id="selAnno"></select>
     <button class="budget-toggle" id="btnBudget">＋ Imposta budget</button>
+    <button class="budget-toggle" onclick="impostaSync()" title="Imposta URL Sincronizzazione">☁️ Sync</button>
   </div>
 
   <div class="stats" id="statsBar"></div>
@@ -294,7 +295,7 @@ tbody td{padding:10px;font-size:13px;}
 // ═══════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyGkGBpuE_edEND4aiRLiMz1okJvp-y_8d_tU08gDO_K_Zk2eVSOuYA_jEXMEmz9ps/exec";
+let SCRIPT_URL = localStorage.getItem("budget_script_url") || "";
 
 const CATEGORIE=[
   {key:"cene",        label:"Cene fuori",    emoji:"🍽️", color:"#E07A5F"},
@@ -424,6 +425,17 @@ function scheduleSyncToSheet() {
 function save() {
   saveLocal();
   scheduleSyncToSheet();
+}
+
+function impostaSync() {
+  const current = localStorage.getItem("budget_script_url") || "";
+  const url = prompt("Inserisci l'URL del tuo Google Apps Script per abilitare il cloud:", current);
+  if (url !== null) {
+    localStorage.setItem("budget_script_url", url.trim());
+    SCRIPT_URL = url.trim();
+    if (SCRIPT_URL) loadFromSheet();
+    else setSyncStatus("error", "Sincronizzazione disattivata");
+  }
 }
 
 // ═══════════════════════════════════════════
